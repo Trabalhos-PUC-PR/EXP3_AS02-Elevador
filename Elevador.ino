@@ -13,7 +13,7 @@ Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 #define elevatorEmergency 3
 #define elevatorOpen 4
 #define elevatorOperating 5
-int currentFloor = 0;
+int currentFloor = 7;
 int queuedFloor = currentFloor;
 uint32_t elevatorState = strip.Color(255, 0, 0);
 // se está no estado de emergência
@@ -65,7 +65,13 @@ void printAll(){/*
   Serial.print("R: ");
   Serial.println(analogRead(in));//
   Serial.print("state: ");
-  Serial.println(elevatorOnline);//*/
+  Serial.println(elevatorOnline);//
+  Serial.print("emer: ");
+  Serial.println(emergencyState);
+  Serial.print("onli: ");
+  Serial.println(elevatorOnline);	
+  Serial.print("move: ");
+  Serial.println(elevatorMoving);*/
 }
 
 void moveTo(int destination){
@@ -88,7 +94,9 @@ void moveTo(int destination){
 }
 
 void changeLed(){
-  if(!emergencyState && elevatorOnline && !elevatorMoving){
+  Serial.print("check: ");
+  Serial.println(!emergencyState && !elevatorMoving && elevatorOnline);
+  if(!emergencyState && !elevatorMoving && elevatorOnline){
     switch(analogRead(in)){
       case(39): //andares, do 0 até o 7
         moveTo(0);
@@ -143,7 +151,7 @@ void changeLed(){
     }
   }else{
     switch(analogRead(in)){
-        case(29):
+        case(29): // desliga o elevador
             elevatorOnline = !elevatorOnline;
             emergencyState = false;
             elevatorMoving = false;
@@ -151,10 +159,10 @@ void changeLed(){
                 digitalWrite(elevatorOpen, HIGH);
             }
         break;
-        case(31):
+        case(31): // liga o modo de emergencia
             if(!emergencyState && elevatorOnline){
-            emergencyState = !emergencyState;
-            MAYDAY();
+            	emergencyState = true;
+            	MAYDAY();
             }
         break;
     }
@@ -164,7 +172,6 @@ void changeLed(){
 void MAYDAY(){
   digitalWrite(elevatorOperating, LOW);
   digitalWrite(elevatorOpen, LOW);
-  elevatorMoving = false;
   while(emergencyState){
   	digitalWrite(elevatorEmergency, HIGH);
     delay(250);
