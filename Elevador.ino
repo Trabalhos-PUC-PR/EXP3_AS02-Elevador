@@ -9,7 +9,7 @@
 // "elevador" em si
 Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
-// estados do elevador
+// estados e atributos do elevador
 #define elevatorEmergency 3
 #define elevatorOpen 4
 #define elevatorOperating 5
@@ -26,22 +26,26 @@ bool elevatorMoving = false;
 // ms pro elevador ir de andar para andar
 int elevatingTime = 500;
 // ms pra porta fechar (o professor pediu, tenho q implementar de algm forma)
-int doorClosingTime = 5000;
+#define staticClosingTime 5000 
+int doorClosingTime = staticClosingTime;
+unsigned long currentTime = 0;
+unsigned long startTime = 0;
+
 
 void setup()
 {
   Serial.begin(9600);
   pinMode(in, INPUT);
   pinMode(button, INPUT);
-  
+
   pinMode(elevatorEmergency, OUTPUT);
   pinMode(elevatorOpen, OUTPUT);
   pinMode(elevatorOperating, OUTPUT);
-  
+
   strip.begin();
   strip.show();
   strip.setBrightness(50);
-  
+
   attachInterrupt(digitalPinToInterrupt(button), changeLed, RISING);
 
   digitalWrite(elevatorOpen, HIGH);
@@ -50,10 +54,24 @@ void setup()
 void loop()
 {
   refreshDisplay();
-  if(emergencyState){
-  	MAYDAY();
-  }
   printAll();
+
+  // checks do estado do elevador,
+  // dependendo do estado, ele pode ou não pode
+  // realizar certas ações
+  // coloquei eles no loop em vez de um while pra ter acesso
+  // aos interrupts em qualquer momento
+  if(elevatorOnline){
+    if(emergencyState){
+      MAYDAY();
+    }else{
+      if(queuedFloor != currentFloor){
+        moveTo(queuedFloor);
+      }else{
+        onStandBy();
+      }	
+    }
+  }
 }
 
 void refreshDisplay(){
@@ -63,85 +81,137 @@ void refreshDisplay(){
 }
 
 void printAll(){
-  Serial.print("check: ");
-  Serial.println(!emergencyState && !elevatorMoving && elevatorOnline);
+  // template pra print pq é chato digitar
+  /*
+  Serial.print("");
+  Serial.println();
+  */
+  
+  /*
+  Serial.print("current: ");
+  Serial.println(currentFloor);
+  
+  Serial.print("queued:  ");
+  Serial.println(queuedFloor);
+  
+  Serial.print("Online:  ");
+  Serial.println(elevatorOnline);
+  */
+  
+  Serial.println("-");
+}
+
+void changeLed(){
+  if(!emergencyState && !elevatorMoving && elevatorOnline){
+    switch(analogRead(in)){
+      // Cada andar 
+      case(39): 
+      queuedFloor = 0;
+      break;
+      case(43):
+      queuedFloor = 1;
+      break;
+      case(50):
+      queuedFloor = 2;
+      break;
+      case(58):
+      queuedFloor = 3;
+      break;
+      case(69):
+      queuedFloor = 4;
+      break;
+      case(87):
+      queuedFloor = 5;
+      break;
+      case(115):
+      queuedFloor = 6;
+      break;
+      case(172):
+      queuedFloor = 7;
+      break;
+      
+      // nem deus sabe oqq isso faz (botão extrema esquerda)
+      case(336):
+      break;
+      
+      // diminui o delay p/ fechar a porta (exagerados 5s)
+      case(35):
+      if(queuedFloor != currentFloor){
+      	//doorClosingTime /= 4;
+        doorClosingTime = 0;
+      }
+      break;
+      
+      // emergencia
+      case(31):
+      emergencyState = true;
+      break;
+      
+      // ON (só vou usar esse botão)
+      case(29):
+      switchPower();
+      break;
+      
+      // OFF (pra nn falar que eu nn fiz nada)
+      case(27):
+      switchPower();
+      break;
+    }
+  }else{
+    // caso o elevador esteja DESLIGADO, 
+    // ele só pode executar uma ação (ligar)
+    // especificamente o ON pra ligar YOO
+    if(analogRead(in) == 29){
+      switchPower();
+    }
+  }
 }
 
 void moveTo(int destination){
-  queuedFloor = destination;
-  delay(doorClosingTime);
-  elevatorMoving = true;
-  digitalWrite(elevatorOpen, LOW);
-  digitalWrite(elevatorOperating, HIGH);
-  while(destination != currentFloor){
+  
+  /*
+  Serial.print("startTime:..");
+  Serial.println(startTime);
+  Serial.print("currentTime:");
+  Serial.println(currentTime);
+  Serial.print("elapsed:....");
+  Serial.println(currentTime - startTime);
+  */
+  
+  if(!elevatorMoving){
+    //IMPLEMENTAR UMA FUNC PRA FACILIDAR MINHA VIDA COM
+    // MILLIS, TERMINO ISSO DPS
+    if(startTime == 0){
+      Serial.print("fechando");
+      startTime = millis();
+    }
+    // get the current "time" 
+    // (actually the number of milliseconds since the program started)
+    currentTime = millis();
+  }
+  //test whether the period has elapsed
+  if (elevatorMoving || currentTime - startTime > doorClosingTime)
+  {
+    elevatorMoving = true;
+    digitalWrite(elevatorOpen, LOW);
+    digitalWrite(elevatorOperating, HIGH);
+    Serial.print("SUBINDO!");
+
     delay(elevatingTime);
     if(currentFloor > destination){
       currentFloor--;
     }else{
       currentFloor++;
     }
-    refreshDisplay();
   }
-  digitalWrite(elevatorOpen, HIGH);
-  digitalWrite(elevatorOperating, LOW);
-  elevatorMoving = false;
 }
 
-void changeLed(){
-  Serial.print("check: ");
-  Serial.println(!emergencyState && elevatorOnline);
-  if(!emergencyState && elevatorOnline){
-    switch(analogRead(in)){
-        case(39): //andares, do 0 até o 7
-        	moveTo(0);
-        	//elevatorState = strip.Color(255, 0, 0);
-        break;
-        case(43):
-          moveTo(1);
-          //elevatorState = strip.Color(0, 255, 0);
-        break;
-        case(50):
-          moveTo(2);
-          //elevatorState = strip.Color(0, 0, 255);
-        break;
-        case(58):
-          moveTo(3);
-          //elevatorState = strip.Color(255, 0, 255);
-        break;
-        case(69):
-          moveTo(4);
-          //elevatorState = strip.Color(255, 255, 0);
-        break;
-        case(87):
-          moveTo(5);
-          //elevatorState = strip.Color(255, 255, 255);
-        break;
-        case(115):
-          moveTo(6);
-          //elevatorState = strip.Color(0, 255, 255);
-        break;
-        case(172):
-          moveTo(7);
-          //elevatorState = strip.Color(255, 100, 0);
-        break;
-        case(336):// nem deus sabe oqq isso faz
-        break;
-        case(35):	// fecha a porta ???????????????????
-        break;
-        case(31):	// emergencia
-          emergencyState = true;
-        break;
-        case(29):	// ON (só vou usar esse botão)
-          switchPower();
-        break;
-        case(27):	// OFF
-        break;
-    }
-  }else{
-    if(analogRead(in) == 29){
-      switchPower();
-    }
-  }
+void onStandBy(){
+  startTime = 0;
+  digitalWrite(elevatorOpen, HIGH);
+  digitalWrite(elevatorOperating, LOW);
+  doorClosingTime = staticClosingTime;
+  elevatorMoving = false;
 }
 
 void switchPower(){
@@ -154,9 +224,6 @@ void switchPower(){
     digitalWrite(elevatorEmergency, LOW);
   }else{
     elevatorOnline = true;
-    if(queuedFloor != currentFloor){
-      moveTo(queuedFloor);
-    }
     digitalWrite(elevatorOpen, HIGH);
   }
 }
@@ -164,7 +231,7 @@ void switchPower(){
 void MAYDAY(){
   digitalWrite(elevatorOperating, LOW);
   digitalWrite(elevatorOpen, LOW);
-  
+
   digitalWrite(elevatorEmergency, HIGH);
   delay(250);
   digitalWrite(elevatorEmergency, LOW);
