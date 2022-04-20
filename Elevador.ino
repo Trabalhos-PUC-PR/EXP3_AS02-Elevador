@@ -50,6 +50,9 @@ void setup()
 void loop()
 {
   refreshDisplay();
+  if(emergencyState){
+  	MAYDAY();
+  }
   printAll();
 }
 
@@ -59,22 +62,13 @@ void refreshDisplay(){
   strip.show();
 }
 
-void printAll(){/*
-  Serial.print("b: ");
-  Serial.println(digitalRead(button));
-  Serial.print("R: ");
-  Serial.println(analogRead(in));//
-  Serial.print("state: ");
-  Serial.println(elevatorOnline);//
-  Serial.print("emer: ");
-  Serial.println(emergencyState);
-  Serial.print("onli: ");
-  Serial.println(elevatorOnline);	
-  Serial.print("move: ");
-  Serial.println(elevatorMoving);*/
+void printAll(){
+  Serial.print("check: ");
+  Serial.println(!emergencyState && !elevatorMoving && elevatorOnline);
 }
 
 void moveTo(int destination){
+  queuedFloor = destination;
   delay(doorClosingTime);
   elevatorMoving = true;
   digitalWrite(elevatorOpen, LOW);
@@ -95,87 +89,84 @@ void moveTo(int destination){
 
 void changeLed(){
   Serial.print("check: ");
-  Serial.println(!emergencyState && !elevatorMoving && elevatorOnline);
-  if(!emergencyState && !elevatorMoving && elevatorOnline){
+  Serial.println(!emergencyState && elevatorOnline);
+  if(!emergencyState && elevatorOnline){
     switch(analogRead(in)){
-      case(39): //andares, do 0 até o 7
-        moveTo(0);
-        //elevatorState = strip.Color(255, 0, 0);
-      break;
-      case(43):
-        moveTo(1);
-        //elevatorState = strip.Color(0, 255, 0);
-      break;
-      case(50):
-        moveTo(2);
-        //elevatorState = strip.Color(0, 0, 255);
-      break;
-      case(58):
-        moveTo(3);
-        //elevatorState = strip.Color(255, 0, 255);
-      break;
-      case(69):
-        moveTo(4);
-        //elevatorState = strip.Color(255, 255, 0);
-      break;
-      case(87):
-        moveTo(5);
-        //elevatorState = strip.Color(255, 255, 255);
-      break;
-      case(115):
-        moveTo(6);
-        //elevatorState = strip.Color(0, 255, 255);
-      break;
-      case(172):
-        moveTo(7);
-        //elevatorState = strip.Color(255, 100, 0);
-      break;
-      case(336):// nem deus sabe oqq isso faz
-      break;
-      case(35):	// fecha a porta ???????????????????
-      break;
-      case(31):	// emergencia
-      if(!emergencyState){
-          emergencyState = !emergencyState;
-          MAYDAY();
-      }
-      break;
-      case(29):	// ON (só vou usar esse botão)
-      	elevatorOnline = false;
-        digitalWrite(elevatorOpen, LOW);
-        digitalWrite(elevatorOperating, LOW);
-        digitalWrite(elevatorEmergency, LOW);
-      break;
-      case(27):	// OFF
-      break;
+        case(39): //andares, do 0 até o 7
+        	moveTo(0);
+        	//elevatorState = strip.Color(255, 0, 0);
+        break;
+        case(43):
+          moveTo(1);
+          //elevatorState = strip.Color(0, 255, 0);
+        break;
+        case(50):
+          moveTo(2);
+          //elevatorState = strip.Color(0, 0, 255);
+        break;
+        case(58):
+          moveTo(3);
+          //elevatorState = strip.Color(255, 0, 255);
+        break;
+        case(69):
+          moveTo(4);
+          //elevatorState = strip.Color(255, 255, 0);
+        break;
+        case(87):
+          moveTo(5);
+          //elevatorState = strip.Color(255, 255, 255);
+        break;
+        case(115):
+          moveTo(6);
+          //elevatorState = strip.Color(0, 255, 255);
+        break;
+        case(172):
+          moveTo(7);
+          //elevatorState = strip.Color(255, 100, 0);
+        break;
+        case(336):// nem deus sabe oqq isso faz
+        break;
+        case(35):	// fecha a porta ???????????????????
+        break;
+        case(31):	// emergencia
+          emergencyState = true;
+        break;
+        case(29):	// ON (só vou usar esse botão)
+          switchPower();
+        break;
+        case(27):	// OFF
+        break;
     }
   }else{
-    switch(analogRead(in)){
-        case(29): // desliga o elevador
-            elevatorOnline = !elevatorOnline;
-            emergencyState = false;
-            elevatorMoving = false;
-            if(elevatorOnline){
-                digitalWrite(elevatorOpen, HIGH);
-            }
-        break;
-        case(31): // liga o modo de emergencia
-            if(!emergencyState && elevatorOnline){
-            	emergencyState = true;
-            	MAYDAY();
-            }
-        break;
+    if(analogRead(in) == 29){
+      switchPower();
     }
+  }
+}
+
+void switchPower(){
+  if(elevatorOnline){
+    elevatorOnline = false;
+    emergencyState = false;
+    elevatorMoving = false;
+    digitalWrite(elevatorOpen, LOW);
+    digitalWrite(elevatorOperating, LOW);
+    digitalWrite(elevatorEmergency, LOW);
+  }else{
+    elevatorOnline = true;
+    if(queuedFloor != currentFloor){
+      moveTo(queuedFloor);
+    }
+    digitalWrite(elevatorOpen, HIGH);
   }
 }
 
 void MAYDAY(){
   digitalWrite(elevatorOperating, LOW);
   digitalWrite(elevatorOpen, LOW);
-  while(emergencyState){
-  	digitalWrite(elevatorEmergency, HIGH);
-    delay(250);
-  	digitalWrite(elevatorEmergency, LOW);
-    delay(250);
-  }
+  
+  digitalWrite(elevatorEmergency, HIGH);
+  delay(250);
+  digitalWrite(elevatorEmergency, LOW);
+  delay(250);
 }
