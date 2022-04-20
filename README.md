@@ -1,7 +1,7 @@
 # EXP3_AS02-Elevador
 Simulação de um elevador em arduino
 
-**[Enunciado](https://raw.githubusercontent.com/Trabalhos-PUC-PR/EXP3_AS02-Elevador/main/ProjetoElevador.pdf)** 
+**[Enunciado](https://raw.githubusercontent.com/Trabalhos-PUC-PR/EXP3_AS02-Elevador/main/ProjetoElevador.pdf)**, sendo bem honesto, eu nn sei direito oq eles querem exatamente, ent eu só fiz oq eu peguei q era meio obvio q eles queriam e eu dei meu toque
 
 ****
 Talvez eu tenha mais botões que o necessário nesse diagrama em baixo, qualquer coisa se eu precisar tirar eu mudo  
