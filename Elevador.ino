@@ -2,7 +2,9 @@
 
 // pinos in e out
 #define in A0
+#define callIn A1
 #define button 2
+#define callButton 3
 #define LED_PIN   13
 #define LED_COUNT 10
 
@@ -10,9 +12,9 @@
 Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 // estados e atributos do elevador
-#define elevatorEmergency 3
-#define elevatorOpen 4
-#define elevatorOperating 5
+#define elevatorEmergency 4
+#define elevatorOpen 5
+#define elevatorOperating 6
 int currentFloor = 0;
 int queuedFloor = currentFloor;
 uint32_t elevatorState = strip.Color(255, 0, 0);
@@ -23,11 +25,21 @@ bool elevatorOnline = true;
 // se o elevador está se movendo
 bool elevatorMoving = false;
 
+bool newCall = false;
+int callOnHold[10];
+int floorCalling = 0;
+bool floorCallUp = false;
+bool floorCallDown = false;
+
+bool movingUp = false;
+bool movingDown = false;
+
 // ms pro elevador ir de andar para andar
 int elevatingTime = 500;
 // ms pra porta fechar (o professor pediu, tenho q implementar de algm forma)
-#define staticClosingTime 5000 
+#define staticClosingTime 500 
 int doorClosingTime = staticClosingTime;
+int alignDelay = 1500;
 unsigned long currentTime = 0;
 unsigned long startTime = 0;
 
@@ -36,7 +48,9 @@ void setup()
 {
   Serial.begin(9600);
   pinMode(in, INPUT);
+  pinMode(callIn, INPUT);
   pinMode(button, INPUT);
+  pinMode(callButton, INPUT);
 
   pinMode(elevatorEmergency, OUTPUT);
   pinMode(elevatorOpen, OUTPUT);
@@ -47,7 +61,8 @@ void setup()
   strip.setBrightness(50);
 
   attachInterrupt(digitalPinToInterrupt(button), changeLed, RISING);
-
+  attachInterrupt(digitalPinToInterrupt(callButton), floorCall, RISING);
+  
   digitalWrite(elevatorOpen, HIGH);
 }
 
@@ -89,18 +104,8 @@ void printAll(){
   /*
     Serial.print("");
     Serial.println();
-    */
+  */
 
-  /*
-    Serial.print("current: ");
-    Serial.println(currentFloor);
-
-    Serial.print("queued:  ");
-    Serial.println(queuedFloor);
-
-    Serial.print("Online:  ");
-    Serial.println(elevatorOnline);
-    */
 
   Serial.println("-");
 }
@@ -177,6 +182,44 @@ void changeLed(){
   }
 }
 
+void floorCall(){
+  switch(analogRead(callIn)){
+   // 9° andar - Térreo | desce sobe, nessa ordem
+   case  15: makeCall(9,false); break; 
+   case  16: makeCall(9, true); break;
+   case  17: makeCall(8,false); break; 
+   case  18: makeCall(8, true); break;
+   case  19: makeCall(7,false); break; 
+   case  21: makeCall(7, true); break;
+   case  22: makeCall(6,false); break; 
+   case  24: makeCall(6, true); break;
+   case  26: makeCall(5,false); break;
+   case  28: makeCall(5, true); break;
+   case  31: makeCall(4,false); break; 
+   case  34: makeCall(4, true); break;
+   case  38: makeCall(3,false); break; 
+   case  44: makeCall(3, true); break;
+   case  51: makeCall(2,false); break; 
+   case  61: makeCall(2, true); break;
+   case  77: makeCall(1,false); break; 
+   case 102: makeCall(1, true); break;
+   case 152: makeCall(0,false); break;
+   case 293: makeCall(0, true); break; 
+  }
+}
+
+void makeCall(int floor, bool goingUp){
+  if(elevatorMoving){
+    if(movingUp == goingUp){
+      if(floor > queuedFloor){
+        newCall = !newCall;
+      }
+    }
+  }else{
+    queuedFloor = floor;
+  }
+}
+
 void moveTo(int destination){
 
   /*
@@ -220,10 +263,10 @@ void moveTo(int destination){
       startTime = 0;
       if(currentFloor > destination){
         currentFloor--;
-        Serial.print("DESCENDO!");
+        movingDown = true;
       }else{
         currentFloor++;
-        Serial.print("SUBINDO!");
+        movingUp = true;
       }
     }
   }
@@ -231,12 +274,14 @@ void moveTo(int destination){
 
 void onStandBy(){
   Serial.println("ALINHANDO...");
-  delay(1500);
+  delay(alignDelay);
   startTime = 0;
   digitalWrite(elevatorOpen, HIGH);
   digitalWrite(elevatorOperating, LOW);
   doorClosingTime = staticClosingTime;
   elevatorMoving = false;
+  movingUp = false;
+  movingDown = false;
 }
 
 void switchPower(){
