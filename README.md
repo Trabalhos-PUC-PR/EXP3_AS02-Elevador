@@ -12,9 +12,11 @@ Na parte de baixo, eles estão na seguinte ordem:
 | 1kΩ | 10kΩ | 20kΩ | 30kΩ | 40kΩ | 50kΩ | 60kΩ | 70kΩ | 80kΩ | 90kΩ | ------ | 100kΩ | 110kΩ | 120kΩ | 130kΩ |
 
 todos os diodos utilizados são diodos normais
+
+nos botões dos andares, os resistores são incrementados de 5kΩ em 5kΩ, começando em 5kΩ e acabando em 100kΩ
 ```
 
-<img src="https://github.com/Trabalhos-PUC-PR/EXP3_AS02-Elevador/blob/main/DiagramaAtualizado.png" width="75%" height="75%">
+<img src="DiagramaUltimateEdition.png" width="75%" height="75%">
 
 ## Referencia:
 [Using millis() for timing. A beginners guide](https://forum.arduino.cc/t/using-millis-for-timing-a-beginners-guide/483573)
