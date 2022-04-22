@@ -5,6 +5,8 @@ Simulação de um elevador em arduino
 
 ****
 ```
+Clique na imagem para ir para o projeto no tinkercad
+
 Pra facilitar a vida de quem vai reproduzir isso, os resistores de cima são todos de 1kΩ;
 Na parte de baixo, eles estão na seguinte ordem:
 
@@ -16,7 +18,7 @@ todos os diodos utilizados são diodos normais
 nos botões dos andares, os resistores são incrementados de 5kΩ em 5kΩ, começando em 5kΩ e acabando em 100kΩ
 ```
 
-<img src="DiagramaUltimateEdition.png" width="75%" height="75%">
+<a href="https://www.tinkercad.com/things/hJp3M7OG8Le"><img src="DiagramaUltimateEdition.png" width="75%" height="75%"></a>
 
 ## Referencia:
 [Using millis() for timing. A beginners guide](https://forum.arduino.cc/t/using-millis-for-timing-a-beginners-guide/483573)
