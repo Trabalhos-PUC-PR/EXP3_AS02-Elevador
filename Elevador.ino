@@ -113,72 +113,44 @@ void printAll(){
 void changeLed(){
   if(!emergencyState && !elevatorMoving && elevatorOnline){
     switch(analogRead(in)){
-      // Cada andar 
-      case(787): 
-      // térreo
-      queuedFloor = 0;
-      break;
-      case(127):
-      queuedFloor = 1;
-      break;
-      case(64):
-      queuedFloor = 2;
-      break;
-      case(43):
-      queuedFloor = 3;
-      break;
-      case(32):
-      queuedFloor = 4;
-      break;
-      case(26):
-      queuedFloor = 5;
-      break;
-      case(21):
-      queuedFloor = 6;
-      break;
-      case(18):
-      queuedFloor = 7;
-      break;
-      case(16):
-      queuedFloor = 8;
-      break;
-      case(14):
-      queuedFloor = 9;
-      break;
+      // Do Térreo ao 9° andar
+      case(787):queuedFloor = 0; break;
+      case(127):queuedFloor = 1; break;
+      case(64): queuedFloor = 2; break;
+      case(43):	queuedFloor = 3; break;
+      case(32): queuedFloor = 4; break;
+      case(26): queuedFloor = 5; break;
+      case(21): queuedFloor = 6; break;
+      case(18): queuedFloor = 7; break;
+      case(16): queuedFloor = 8; break;
+      case(14): queuedFloor = 9; break;
 
       // diminui o delay p/ fechar a porta (exagerados 5s)
       case(13):
       if(queuedFloor != currentFloor){
-        //doorClosingTime /= 4;
         doorClosingTime = 0;
       }
       break;
 
       // emergencia
-      case(12):
-      emergencyState = true;
-      break;
+      case(12): emergencyState = true; break;
 
       // ON (só vou usar esse botão)
       case(11):
-      switchPower();
-      break;
-
-      // OFF (pra nn falar que eu nn fiz nada)
       case(10):
       switchPower();
       break;
     }
   }else{
-    // caso o elevador esteja DESLIGADO, 
-    // ele só pode executar uma ação (ligar)
-    // especificamente o ON pra ligar YOO
+    
     if(analogRead(in) == 11){
       switchPower();
     }
+    
     if(analogRead(in) == 12 && elevatorOnline){
       emergencyState = true;	
     }
+    
   }
 }
 
@@ -221,16 +193,6 @@ void makeCall(int floor, bool goingUp){
 }
 
 void moveTo(int destination){
-
-  /*
-    Serial.print("startTime:..");
-    Serial.println(startTime);
-    Serial.print("currentTime:");
-    Serial.println(currentTime);
-    Serial.print("elapsed:....");
-    Serial.println(currentTime - startTime);
-    */
-
   if(!elevatorMoving){
     if(startTime == 0){
       Serial.print("fechando");
