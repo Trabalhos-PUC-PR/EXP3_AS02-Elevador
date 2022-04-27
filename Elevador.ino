@@ -17,15 +17,24 @@ Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 #define elevatorOperating 6
 int currentFloor = 0;
 int queuedFloor = currentFloor;
-uint32_t elevatorState = strip.Color(255, 0, 0);
+
+#define elevatorOffline strip.Color(100, 100, 100)
+#define elevatorOpenDoor strip.Color(0, 0, 255)
+#define elavatorOperating strip.Color(255, 255, 0)
+#define elevatorEmergency strip.Color(255, 0, 0)
+uint32_t elevatorState = elevatorOpenDoor;
+
 // se está no estado de emergência
 bool emergencyState = false;
 // se está ligado ou desligado
 bool elevatorOnline = true;
 // se o elevador está se movendo
 bool elevatorMoving = false;
+// se ele está fazendo uma parada rapida
+bool elevatorOnHold = false;
 
 bool newCall = false;
+// se eu for implementar esse onhold, VAI SER BEM DEPOIS!
 int callOnHold[10];
 int floorCalling = 0;
 bool floorCallUp = false;
@@ -42,6 +51,9 @@ int doorClosingTime = staticClosingTime;
 int alignDelay = 1500;
 unsigned long currentTime = 0;
 unsigned long startTime = 0;
+
+unsigned long currentStop = 0;
+unsigned long startStop = 0;
 
 
 void setup()
@@ -71,28 +83,29 @@ void loop()
   refreshDisplay();
   printAll();
 
-  // checks do estado do elevador,
-  // dependendo do estado, ele pode ou não pode
-  // realizar certas ações
-  // coloquei eles no loop em vez de um while pra ter acesso
-  // aos interrupts em qualquer momento
   if(elevatorOnline){
     if(emergencyState){
       MAYDAY();
     }else{
-
-      if(queuedFloor != currentFloor){
-        moveTo(queuedFloor);
+      if(newCall && currentFloor == floorCalling){
+        onHold();
       }else{
-        if(elevatorMoving){
-          onStandBy();
+        if(newCall && currentFloor != floorCalling){
+          moveTo(floorCalling);
+        }else{
+          if(queuedFloor != currentFloor){
+            moveTo(queuedFloor);
+          }else{
+            if(elevatorMoving){
+              onStandBy();
+            }
+          }
         }
-      }	
-
+      }
     }
   }
 }
-
+  
 void refreshDisplay(){
   strip.clear();
   strip.setPixelColor(currentFloor, elevatorState); 
@@ -105,90 +118,103 @@ void printAll(){
     Serial.print("");
     Serial.println();
   */
-
-
-  Serial.println("-");
+  //Serial.println("-");
 }
 
 void changeLed(){
   if(!emergencyState && !elevatorMoving && elevatorOnline){
     switch(analogRead(in)){
-      // Do Térreo ao 9° andar
-      case(787):queuedFloor = 0; break;
-      case(127):queuedFloor = 1; break;
-      case(64): queuedFloor = 2; break;
-      case(43):	queuedFloor = 3; break;
-      case(32): queuedFloor = 4; break;
-      case(26): queuedFloor = 5; break;
-      case(21): queuedFloor = 6; break;
-      case(18): queuedFloor = 7; break;
-      case(16): queuedFloor = 8; break;
-      case(14): queuedFloor = 9; break;
+      // 9° até o T
+      case(1018): queuedFloor = 9; break;
+      case(974):  queuedFloor = 8; break;
+      case(930):  queuedFloor = 7; break;
+      case(890):  queuedFloor = 6; break;
+      case(853):  queuedFloor = 5; break;
+      case(818):  queuedFloor = 4; break;
+      case(787):  queuedFloor = 3; break;
+      case(758):  queuedFloor = 2; break;
+      case(731):  queuedFloor = 1; break;
+      case(706):  queuedFloor = 0; break;
 
       // diminui o delay p/ fechar a porta (exagerados 5s)
-      case(13):
+      case(682):
       if(queuedFloor != currentFloor){
+        //doorClosingTime /= 4;
         doorClosingTime = 0;
       }
       break;
 
       // emergencia
-      case(12): emergencyState = true; break;
+      case(660):
+      emergencyState = true;
+      break;
 
       // ON (só vou usar esse botão)
-      case(11):
-      case(10):
+      case(639):
+      case(620):
       switchPower();
       break;
     }
   }else{
-    
-    if(analogRead(in) == 11){
+    // caso o elevador esteja DESLIGADO, 
+    // ele só pode executar uma ação (ligar)
+    if(analogRead(in) == 639 || analogRead(in) == 620){
       switchPower();
     }
-    
-    if(analogRead(in) == 12 && elevatorOnline){
+	// para ativar o estado de emergencia durante o movimento
+    if(analogRead(in) == 660 && elevatorOnline){
       emergencyState = true;	
     }
-    
   }
 }
 
 void floorCall(){
   switch(analogRead(callIn)){
    // 9° andar - Térreo | desce sobe, nessa ordem
-   case  15: makeCall(9,false); break; 
-   case  16: makeCall(9, true); break;
-   case  17: makeCall(8,false); break; 
-   case  18: makeCall(8, true); break;
-   case  19: makeCall(7,false); break; 
-   case  21: makeCall(7, true); break;
-   case  22: makeCall(6,false); break; 
-   case  24: makeCall(6, true); break;
-   case  26: makeCall(5,false); break;
-   case  28: makeCall(5, true); break;
-   case  31: makeCall(4,false); break; 
-   case  34: makeCall(4, true); break;
-   case  38: makeCall(3,false); break; 
-   case  44: makeCall(3, true); break;
-   case  51: makeCall(2,false); break; 
-   case  61: makeCall(2, true); break;
-   case  77: makeCall(1,false); break; 
-   case 102: makeCall(1, true); break;
-   case 152: makeCall(0,false); break;
-   case 293: makeCall(0, true); break; 
+   case 998: makeCall(9, true); break;
+   case 974: makeCall(9,false); break; 
+   case 952: makeCall(8, true); break;
+   case 930: makeCall(8,false); break; 
+   case 909: makeCall(7, true); break;
+   case 890: makeCall(7,false); break; 
+   case 871: makeCall(6, true); break;
+   case 853: makeCall(6,false); break; 
+   case 835: makeCall(5, true); break;
+   case 818: makeCall(5,false); break;
+   case 802: makeCall(4, true); break;
+   case 787: makeCall(4,false); break; 
+   case 772: makeCall(3, true); break;
+   case 758: makeCall(3,false); break; 
+   case 744: makeCall(2, true); break;
+   case 731: makeCall(2,false); break; 
+   case 718: makeCall(1, true); break;
+   case 706: makeCall(1,false); break; 
+   case 694: makeCall(0, true); break; 
+   case 682: makeCall(0,false); break;
   }
 }
 
 void makeCall(int floor, bool goingUp){
-  if(elevatorMoving){
-    if(movingUp == goingUp){
-      if(floor > queuedFloor){
-        newCall = !newCall;
+ 
+  if(!newCall){ // colocar no else a lógica pra lista das novas paradas
+    if(!elevatorMoving){
+      queuedFloor = floor;
+    }else{
+      
+      if(movingUp == goingUp){
+        if(floor > currentFloor && floor != queuedFloor){
+          newCall = true;
+          floorCalling = floor;
+        }
       }
+      if(movingDown == !goingUp){
+        if(floor < currentFloor && floor != queuedFloor){
+          newCall = true;
+          floorCalling = floor;
+        }
+      }
+      
     }
-  }else{
-    queuedFloor = floor;
   }
 }
 
@@ -198,11 +224,8 @@ void moveTo(int destination){
       Serial.print("fechando");
       startTime = millis();
     }
-    // get the current "time" 
-    // (actually the number of milliseconds since the program started)
     currentTime = millis();
   }
-  //test whether the period has elapsed
   if (elevatorMoving || currentTime - startTime > doorClosingTime)
   {
     if(!elevatorMoving || startTime == 0){
@@ -211,14 +234,22 @@ void moveTo(int destination){
     elevatorMoving = true;
     digitalWrite(elevatorOpen, LOW);
     digitalWrite(elevatorOperating, HIGH);
-
+    elevatorState = elavatorOperating;
+    doorClosingTime = staticClosingTime;
+    
+    if(currentFloor > destination){ 
+      movingDown  = true;
+    }else{
+      movingUp = true;
+    }
+/*
     Serial.print("startTime:..");
     Serial.println(startTime);
     Serial.print("currentTime:");
     Serial.println(currentTime);
     Serial.print("elapsed:....");
     Serial.println(currentTime - startTime);
-
+*/
     currentTime = millis();
 
     if(currentTime - startTime > elevatingTime){
@@ -238,6 +269,7 @@ void onStandBy(){
   Serial.println("ALINHANDO...");
   delay(alignDelay);
   startTime = 0;
+  elevatorState = elevatorOpenDoor;
   digitalWrite(elevatorOpen, HIGH);
   digitalWrite(elevatorOperating, LOW);
   doorClosingTime = staticClosingTime;
@@ -245,6 +277,30 @@ void onStandBy(){
   movingUp = false;
   movingDown = false;
 }
+
+void onHold(){
+  Serial.println("ONHOLD!");
+  elevatorOnHold = true;
+  elevatorMoving = false;
+  elevatorState = elevatorOpenDoor;
+  digitalWrite(elevatorOpen, HIGH);
+  digitalWrite(elevatorOperating, LOW);
+
+  if(startStop == 0){
+    startStop = millis();
+  }
+  currentStop = millis();
+  
+  if (currentStop - startStop > doorClosingTime){
+    startStop = 0;
+    elevatorOnHold = false;
+    elevatorMoving = true;
+    elevatorState = elevatorOperating;
+    digitalWrite(elevatorOpen, LOW);
+    digitalWrite(elevatorOperating, HIGH);
+	newCall = false;
+  }
+}		
 
 void switchPower(){
   if(elevatorOnline){
@@ -254,8 +310,10 @@ void switchPower(){
     digitalWrite(elevatorOpen, LOW);
     digitalWrite(elevatorOperating, LOW);
     digitalWrite(elevatorEmergency, LOW);
+    elevatorState = elevatorOffline;
   }else{
     elevatorOnline = true;
+    elevatorState = elevatorOpenDoor;
     digitalWrite(elevatorOpen, HIGH);
   }
 }
@@ -266,7 +324,11 @@ void MAYDAY(){
   digitalWrite(elevatorOpen, LOW);
 
   digitalWrite(elevatorEmergency, HIGH);
+  strip.setPixelColor(currentFloor, elevatorEmergency);
+  strip.show();
   delay(250);
+  strip.clear();
+  strip.show();
   digitalWrite(elevatorEmergency, LOW);
   delay(250);
 }
