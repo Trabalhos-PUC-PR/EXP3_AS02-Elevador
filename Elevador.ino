@@ -12,9 +12,9 @@
 Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 // estados e atributos do elevador
-#define elevatorEmergency 4
-#define elevatorOpen 5
-#define elevatorOperating 6
+#define elevatorEmergencyLED 4
+#define elevatorOpenLED 5
+#define elevatorOperatingLED 6
 int currentFloor = 0;
 int queuedFloor = currentFloor;
 
@@ -32,6 +32,7 @@ bool elevatorOnline = true;
 bool elevatorMoving = false;
 // se ele está fazendo uma parada rapida
 bool elevatorOnHold = false;
+bool elevatorPreparing = false;
 
 bool newCall = false;
 // se eu for implementar esse onhold, VAI SER BEM DEPOIS!
@@ -64,9 +65,9 @@ void setup()
   pinMode(button, INPUT);
   pinMode(callButton, INPUT);
 
-  pinMode(elevatorEmergency, OUTPUT);
-  pinMode(elevatorOpen, OUTPUT);
-  pinMode(elevatorOperating, OUTPUT);
+  pinMode(elevatorEmergencyLED, OUTPUT);
+  pinMode(elevatorOpenLED, OUTPUT);
+  pinMode(elevatorOperatingLED, OUTPUT);
 
   strip.begin();
   strip.show();
@@ -75,7 +76,7 @@ void setup()
   attachInterrupt(digitalPinToInterrupt(button), changeLed, RISING);
   attachInterrupt(digitalPinToInterrupt(callButton), floorCall, RISING);
   
-  digitalWrite(elevatorOpen, HIGH);
+  digitalWrite(elevatorOpenLED, HIGH);
 }
 
 void loop()
@@ -108,7 +109,13 @@ void loop()
   
 void refreshDisplay(){
   strip.clear();
-  strip.setPixelColor(currentFloor, elevatorState); 
+  if(elevatorOnline){
+    if(newCall){
+      strip.setPixelColor(floorCalling, strip.Color(255, 100, 255)); 
+    }
+    strip.setPixelColor(queuedFloor, strip.Color(255, 0, 255)); 
+    strip.setPixelColor(currentFloor, elevatorState); 
+  }
   strip.show();
 }
 
@@ -122,7 +129,7 @@ void printAll(){
 }
 
 void changeLed(){
-  if(!emergencyState && !elevatorMoving && elevatorOnline){
+  if(!emergencyState && !elevatorMoving && elevatorOnline && !elevatorPreparing){
     switch(analogRead(in)){
       // 9° até o T
       case(1018): queuedFloor = 9; break;
@@ -135,11 +142,12 @@ void changeLed(){
       case(758):  queuedFloor = 2; break;
       case(731):  queuedFloor = 1; break;
       case(706):  queuedFloor = 0; break;
-
-      // diminui o delay p/ fechar a porta (exagerados 5s)
+    }
+  }
+  switch(analogRead(in)){
+    // diminui o delay p/ fechar a porta (exagerados 5s)
       case(682):
       if(queuedFloor != currentFloor){
-        //doorClosingTime /= 4;
         doorClosingTime = 0;
       }
       break;
@@ -149,22 +157,11 @@ void changeLed(){
       emergencyState = true;
       break;
 
-      // ON (só vou usar esse botão)
+      // ON | OFF
       case(639):
       case(620):
       switchPower();
       break;
-    }
-  }else{
-    // caso o elevador esteja DESLIGADO, 
-    // ele só pode executar uma ação (ligar)
-    if(analogRead(in) == 639 || analogRead(in) == 620){
-      switchPower();
-    }
-	// para ativar o estado de emergencia durante o movimento
-    if(analogRead(in) == 660 && elevatorOnline){
-      emergencyState = true;	
-    }
   }
 }
 
@@ -195,9 +192,9 @@ void floorCall(){
 }
 
 void makeCall(int floor, bool goingUp){
- 
+
   if(!newCall){ // colocar no else a lógica pra lista das novas paradas
-    if(!elevatorMoving){
+    if(!elevatorMoving && !elevatorPreparing){
       queuedFloor = floor;
     }else{
       
@@ -222,6 +219,7 @@ void moveTo(int destination){
   if(!elevatorMoving){
     if(startTime == 0){
       Serial.print("fechando");
+      elevatorPreparing = true;
       startTime = millis();
     }
     currentTime = millis();
@@ -232,8 +230,8 @@ void moveTo(int destination){
       startTime = millis();
     }
     elevatorMoving = true;
-    digitalWrite(elevatorOpen, LOW);
-    digitalWrite(elevatorOperating, HIGH);
+    digitalWrite(elevatorOpenLED, LOW);
+    digitalWrite(elevatorOperatingLED, HIGH);
     elevatorState = elavatorOperating;
     doorClosingTime = staticClosingTime;
     
@@ -270,34 +268,38 @@ void onStandBy(){
   delay(alignDelay);
   startTime = 0;
   elevatorState = elevatorOpenDoor;
-  digitalWrite(elevatorOpen, HIGH);
-  digitalWrite(elevatorOperating, LOW);
+  digitalWrite(elevatorOpenLED, HIGH);
+  digitalWrite(elevatorOperatingLED, LOW);
   doorClosingTime = staticClosingTime;
+  elevatorPreparing = false;
   elevatorMoving = false;
   movingUp = false;
   movingDown = false;
 }
 
 void onHold(){
-  Serial.println("ONHOLD!");
+  
+  if(startStop == 0){
+    Serial.println("ALINHANDO...");
+    delay(alignDelay);
+    startStop = millis();
+  }
+  
   elevatorOnHold = true;
   elevatorMoving = false;
   elevatorState = elevatorOpenDoor;
-  digitalWrite(elevatorOpen, HIGH);
-  digitalWrite(elevatorOperating, LOW);
+  digitalWrite(elevatorOpenLED, HIGH);
+  digitalWrite(elevatorOperatingLED, LOW);
 
-  if(startStop == 0){
-    startStop = millis();
-  }
   currentStop = millis();
   
   if (currentStop - startStop > doorClosingTime){
     startStop = 0;
     elevatorOnHold = false;
     elevatorMoving = true;
-    elevatorState = elevatorOperating;
-    digitalWrite(elevatorOpen, LOW);
-    digitalWrite(elevatorOperating, HIGH);
+    elevatorState = elavatorOperating;
+    digitalWrite(elevatorOpenLED, LOW);
+    digitalWrite(elevatorOperatingLED, HIGH);
 	newCall = false;
   }
 }		
@@ -307,28 +309,28 @@ void switchPower(){
     elevatorOnline = false;
     emergencyState = false;
     elevatorMoving = false;
-    digitalWrite(elevatorOpen, LOW);
-    digitalWrite(elevatorOperating, LOW);
-    digitalWrite(elevatorEmergency, LOW);
+    digitalWrite(elevatorOpenLED, LOW);
+    digitalWrite(elevatorOperatingLED, LOW);
+    digitalWrite(elevatorEmergencyLED, LOW);
     elevatorState = elevatorOffline;
   }else{
     elevatorOnline = true;
     elevatorState = elevatorOpenDoor;
-    digitalWrite(elevatorOpen, HIGH);
+    digitalWrite(elevatorOpenLED, HIGH);
   }
 }
 
 void MAYDAY(){
   Serial.println("EMERGENCIA! REINICIE O ELEVADOR PARA CONCERTAR O PROBLEMA!");
-  digitalWrite(elevatorOperating, LOW);
-  digitalWrite(elevatorOpen, LOW);
+  digitalWrite(elevatorOperatingLED, LOW);
+  digitalWrite(elevatorOpenLED, LOW);
 
-  digitalWrite(elevatorEmergency, HIGH);
+  digitalWrite(elevatorEmergencyLED, HIGH);
   strip.setPixelColor(currentFloor, elevatorEmergency);
   strip.show();
   delay(250);
-  strip.clear();
+  strip.setPixelColor(currentFloor, strip.Color(0, 0, 0));
   strip.show();
-  digitalWrite(elevatorEmergency, LOW);
+  digitalWrite(elevatorEmergencyLED, LOW);
   delay(250);
 }
