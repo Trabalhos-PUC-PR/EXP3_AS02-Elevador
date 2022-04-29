@@ -2,6 +2,21 @@
 Simulação de um elevador em arduino  
 **[Enunciado](https://raw.githubusercontent.com/Trabalhos-PUC-PR/EXP3_AS02-Elevador/main/ProjetoElevador.pdf)**  
 
+<details><summary><h3>Grupo:</h3></summary>
+  
+  - <a href="https://github.com/Kovalski-rgb">Kovalski</a>  
+  
+  - <a href="https://github.com/danielnowakassis">Daniel Nowak</a>  
+  
+  - <a href="https://github.com/Sherensberk">Henrycke</a>  
+  
+  - <a href="https://github.com/BerkSpar">Felipe Passos</a>  
+  
+  - <a>Jean Marcel</a>  
+
+  
+</details>
+
 ****
 
 <a href="https://www.tinkercad.com/things/hJp3M7OG8Le"><img src="DiagramaUltimateEditionLastSeason.png" width="75%" height="75%"></a>
